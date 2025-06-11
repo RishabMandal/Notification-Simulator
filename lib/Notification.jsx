@@ -11,21 +11,7 @@ export async function registerForPushNotificationsAsync() {
 
 export async function scheduleDailyReminder() {
   // 9 PM
-  await Notifications.cancelAllScheduledNotificationsAsync(); // Prevent duplicates
-
-  // await Notifications.scheduleNotificationAsync({
-  //   content: {
-  //     title: "👕 Outfit Reminder",
-  //     body: "Don’t forget to log what you wore today!",
-  //   },
-  //   trigger: {
-  //     // type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-  //     hour:9,
-  //     minute:57,
-  //     repeats: true,
-  //   },
-  // });
-  // Get the current date and time
+  await Notifications.cancelAllScheduledNotificationsAsync(); 
   const now = new Date();
 
   // Create a new Date object for the desired trigger time (9:50 PM)

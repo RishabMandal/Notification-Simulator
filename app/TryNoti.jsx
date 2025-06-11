@@ -84,20 +84,6 @@ export default function TryNoti() {
   );
 }
 
-// async function schedulePushNotification() {
-//   await Notifications.scheduleNotificationAsync({
-//     content: {
-//       title: "🛎️ Outfit Reminder",
-//       body: "This is a test notification!",
-//       data: { data: "goes here", test: { test1: "more data" } },
-//     },
-//     trigger: {
-//       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-//       seconds: 1,
-//     },
-//   });
-// }
-
 async function schedulePushNotification() {
   const now = new Date();
   const triggerDate = new Date(now);
@@ -163,7 +149,6 @@ async function registerForPushNotificationsAsync() {
           projectId,
         })
       ).data;
-      //   console.log(token);
     } catch (e) {
       token = `${e}`;
     }
