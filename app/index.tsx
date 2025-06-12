@@ -1,8 +1,9 @@
 import "../global.css";
 
 import * as Notifications from "expo-notifications";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Platform, View } from "react-native";
+import AnimatedSplash from "../components/AnimatedSplash";
 import HomePage from "./HomePage";
 
 export default function HomeScreen() {
@@ -16,6 +17,12 @@ export default function HomeScreen() {
       });
     }
   }, []);
+
+  const [ready, setReady] = useState(false);
+
+  if (!ready) {
+    return <AnimatedSplash onDone={() => setReady(true)} />;
+  }
   return (
     <View className="bg-black">
       <HomePage />

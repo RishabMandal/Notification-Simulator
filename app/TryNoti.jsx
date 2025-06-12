@@ -57,7 +57,9 @@ export default function TryNoti() {
         alignItems: "center",
         justifyContent: "space-around",
       }}
+      className="p-4"
     >
+      <Text className="text-3xl">Notification Debugging</Text>
       <Text>Your expo push token: {expoPushToken}</Text>
       <Text>{`Channels: ${JSON.stringify(
         channels.map((c) => c.id),
@@ -85,17 +87,6 @@ export default function TryNoti() {
 }
 
 async function schedulePushNotification() {
-  const now = new Date();
-  const triggerDate = new Date(now);
-
-  // Set the time to 9:25 AM
-  triggerDate.setHours(9, 35, 0, 0);
-
-  // If it's already past 9:25 AM today, schedule for 9:25 AM tomorrow
-  if (triggerDate <= now) {
-    triggerDate.setDate(triggerDate.getDate() + 1);
-  }
-
   await Notifications.scheduleNotificationAsync({
     content: {
       title: "🛎️ Outfit Reminder",
@@ -103,12 +94,37 @@ async function schedulePushNotification() {
       data: { data: "goes here", test: { test1: "more data" } },
     },
     trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: triggerDate,
-      repeats: true,
+      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+      seconds: 1,
     },
   });
 }
+
+// async function schedulePushNotification() {
+//   const now = new Date();
+//   const triggerDate = new Date(now);
+
+//   // Set the time to 9:25 AM
+//   triggerDate.setHours(9, 35, 0, 0);
+
+//   // If it's already past 9:25 AM today, schedule for 9:25 AM tomorrow
+//   if (triggerDate <= now) {
+//     triggerDate.setDate(triggerDate.getDate() + 1);
+//   }
+
+//   await Notifications.scheduleNotificationAsync({
+//     content: {
+//       title: "🛎️ Outfit Reminder",
+//       body: "This is a test notification!",
+//       data: { data: "goes here", test: { test1: "more data" } },
+//     },
+//     trigger: {
+//       type: Notifications.SchedulableTriggerInputTypes.DATE,
+//       date: triggerDate,
+//       repeats: true,
+//     },
+//   });
+// }
 
 async function registerForPushNotificationsAsync() {
   let token;
@@ -140,7 +156,10 @@ async function registerForPushNotificationsAsync() {
     try {
       const projectId =
         Constants?.expoConfig?.extra?.eas?.projectId ??
-        Constants?.easConfig?.projectId;
+        Constants?.easConfig?.projectId ??
+        "b16f13a0-ae00-4062-b4a0-bb7d4b5bf442";
+      // console.log(projectId);
+
       if (!projectId) {
         throw new Error("Project ID not found");
       }

@@ -1,68 +1,114 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
+import Constants from "expo-constants";
+import * as Device from "expo-device";
 import * as Haptics from "expo-haptics";
 import * as Notifications from "expo-notifications";
-import React, { useEffect, useState } from "react";
-import { Alert, FlatList, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert, FlatList, Platform, Text, View } from "react-native";
 import NotificationGlassCard from "../components/NotificationGlassCard";
 import NotificationInput from "../components/NotificationInput";
 
-export default function NotificationSimulator() {
-  const [notifications, setNotifications] = useState([
-    {
-      title: "Welcome!",
-      message: "Your glassy notification simulator is ready 🚀",
-      time: new Date().toLocaleTimeString(),
-    },
-  ]);
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
+export default function TryNoti() {
+  const [expoPushToken, setExpoPushToken] = useState("");
+  const [channels, setChannels] = useState([]);
+  const [notification, setNotification] = useState(undefined);
+  const [notifications, setNotifications] = useState([]);
   const [lastNotification, setLastNotification] = useState(null);
 
-  useEffect(() => {
-    const loadNotifications = async () => {
-      try {
-        const stored = await AsyncStorage.getItem("notifications");
-        if (stored) {
-          setNotifications(JSON.parse(stored));
-        } else {
-          const defaultNote = {
-            title: "Welcome!",
-            message: "Your glassy notification simulator is ready 🚀",
-            time: new Date().toLocaleTimeString(),
-          };
-          setNotifications([defaultNote]);
-          await AsyncStorage.setItem(
-            "notifications",
-            JSON.stringify([defaultNote])
-          );
-        }
-      } catch (e) {
-        console.error("Failed to load notifications:", e);
-      }
-    };
+  const notificationListener = useRef();
+  const responseListener = useRef();
 
-    loadNotifications();
+  useEffect(() => {
+    registerForPushNotificationsAsync().then(
+      (token) => token && setExpoPushToken(token)
+    );
+
+    if (Platform.OS === "android") {
+      Notifications.getNotificationChannelsAsync().then((value) =>
+        setChannels(value ?? [])
+      );
+    }
+
+    notificationListener.current =
+      Notifications.addNotificationReceivedListener((notification) => {
+        setNotification(notification);
+      });
+
+    responseListener.current =
+      Notifications.addNotificationResponseReceivedListener((response) => {
+        console.log(response);
+      });
+
+    loadStoredNotifications();
+
+    return () => {
+      notificationListener.current &&
+        Notifications.removeNotificationSubscription(
+          notificationListener.current
+        );
+      responseListener.current &&
+        Notifications.removeNotificationSubscription(responseListener.current);
+    };
   }, []);
 
-  const handleSave = async (notification) => {
-    const updated = [notification, ...notifications];
-    setLastNotification(notification);
+  const loadStoredNotifications = async () => {
+    try {
+      const stored = await AsyncStorage.getItem("notifications");
+      if (stored) {
+        setNotifications(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error("Failed to load stored notifications:", e);
+    }
+  };
+
+  const handleSave = async (note) => {
+    const now = new Date();
+    const dateObj = note.dateTime ? new Date(note.dateTime) : now;
+  
+    const isValidScheduled =
+      note.dateTime &&
+      dateObj instanceof Date &&
+      !isNaN(dateObj.getTime()) &&
+      dateObj > now;
+  
+    const newNote = {
+      ...note,
+      time: dateObj.toLocaleTimeString(),
+      date: dateObj.toLocaleDateString(),
+    };
+  
+    const updated = [newNote, ...notifications];
+  
+    console.log("Scheduled for:", newNote.date, newNote.time);
+  
+    setLastNotification(newNote);
     setNotifications(updated);
-
     await AsyncStorage.setItem("notifications", JSON.stringify(updated));
-
-    // 🔔 Local Push Notification
+  
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: notification.title,
-        body: notification.message,
+        title: note.title,
+        body: note.message,
+        data: note,
         sound: true,
       },
-      trigger: null, // trigger immediately
+      trigger: isValidScheduled ? dateObj : null,
     });
-
+  
     setTimeout(() => setLastNotification(null), 5000);
   };
+  
 
   const confirmDelete = (index) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
@@ -103,7 +149,7 @@ export default function NotificationSimulator() {
         <BlurView
           intensity={70}
           tint="dark"
-          className="p-4 rounded-2xl border border-white/10 bg-white/10"
+          className="p-4 rounded-2xl border border-white/10 bg-white/10 mt-4"
         >
           <Text className="text-white font-bold mb-2 text-lg">
             🔔 New Notification
@@ -133,4 +179,48 @@ export default function NotificationSimulator() {
       </BlurView>
     </View>
   );
+}
+
+async function registerForPushNotificationsAsync() {
+  let token;
+
+  if (Platform.OS === "android") {
+    await Notifications.setNotificationChannelAsync("myNotificationChannel", {
+      name: "A channel is needed for the permissions prompt to appear",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [250, 0, 0, 250],
+      lightColor: "#FF231F7C",
+    });
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } =
+      await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    if (existingStatus !== "granted") {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    if (finalStatus !== "granted") {
+      alert("Failed to get push token for push notification!");
+      return;
+    }
+
+    try {
+      const projectId =
+        Constants?.expoConfig?.extra?.eas?.projectId ??
+        Constants?.easConfig?.projectId ??
+        "b16f13a0-ae00-4062-b4a0-bb7d4b5bf442";
+
+      if (!projectId) throw new Error("Project ID not found");
+
+      token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
+    } catch (e) {
+      token = `${e}`;
+    }
+  } else {
+    alert("Must use physical device for Push Notifications");
+  }
+
+  return token;
 }
